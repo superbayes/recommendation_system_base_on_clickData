@@ -98,6 +98,7 @@ def train(model_save_path = './models/checkpoints',  # 模型保存路径
 
 def test(
         model_save_path='./models/checkpoints',
+        result_matrix_save_path='./models/result_matrix.npy',
         num_features=10,
         is_train=False,
         lr=1e-4
@@ -108,22 +109,11 @@ def test(
                                                                             rating_path='./data/rating.npy',
                                                                             record_path='./data/record.npy'
                                                                             )
-
+    #
     # 初始化内容矩阵和用户喜好矩阵，产生的参数都是随机数并且是正态分布的
     X_parameters = tf.Variable(tf.random_normal([productNum, num_features], stddev=0.1, mean=0.0), trainable=is_train, name='X_parameters')
     Theta_parameters = tf.Variable(tf.random_normal([userNum, num_features], stddev=0.1, mean=0.0), trainable=is_train, name='Theta_parameters')
 
-    # 构建损失函数 将X_parameters，Theta_parameters矩阵相乘相乘之前将Theta_parameters转置
-    loss = 1/ 2 * tf.reduce_sum(
-        ((tf.matmul(X_parameters, Theta_parameters, transpose_b=True) - rating) * record) ** 2) + 1 / 2 * (
-                       tf.reduce_sum(X_parameters ** 2) + tf.reduce_sum(Theta_parameters ** 2))
-    # 构建优化器
-    optimizer = tf.train.AdamOptimizer(lr)
-    train = optimizer.minimize(loss)
-    # 计算错误率
-    predicts = tf.matmul(X_parameters, Theta_parameters, transpose_b=True)
-    errors = tf.sqrt(tf.reduce_sum((predicts - rating) ** 2))
-    # 构建持久化路径 和 持久化对象。
     saver = tf.train.Saver(max_to_keep=2)
     create_dir_path(model_save_path)
 
@@ -143,13 +133,11 @@ def test(
         X_, Theta_ = sess.run([X_parameters, Theta_parameters])
         # 将电影内容矩阵和用户喜好矩阵相乘，再加上每一行的均值，便得到一个完整的电影评分表
         predicts = np.dot(X_, Theta_.T)
-        # 计算预测值与真实值的残差平方和的算术平方根，将它作为误差error,随着迭代次数增加而减少
-        errors = np.sqrt(np.sum((predicts - rating) ** 2))
-
-
+        # 保存预测矩阵(产品数,用户数)
+        predicts=predicts*5
+        np.save(file=result_matrix_save_path, arr=predicts)
+    
     sess.close()
-    pass
-
 
 if __name__ == '__main__':
     train(epoches=500)
